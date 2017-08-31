@@ -3,6 +3,15 @@ EFA Version 3.0.2.4 Changes
 ############################################################
 
 Issue #378 Enhancement       - Disable mod_security starting at 3.0.2.4
+Issue #380 Enhancement       - Update DCC to latest version
+Issue #379 Enhancement       - Update Pyzor to latest version
+Issue #376 Bug               - Secure loopback access to mysql
+Issue #375 Bug               - Postfix Relay Info Missing
+Issue #373 Bug               - SA Rule Hits Report Issues
+Issue #372 Bug               - viewmail.php ampersand bug
+
+Updated Webmin versions
+update MailWatch from 1.2.3-dev to 1.2.5-master
 
 ############################################################
 EFA Version 3.0.2.3 Changes

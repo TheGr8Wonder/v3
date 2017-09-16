@@ -1,7 +1,7 @@
 #!/bin/bash
 action=$1
 # +--------------------------------------------------------------------+
-# EFA 3.0.2.4 build script version 20170831
+# EFA 3.0.2.4 build script version 20170906
 # +--------------------------------------------------------------------+
 # Copyright (C) 2013~2017 https://efa-project.org
 #
@@ -33,9 +33,9 @@ mirror="http://dl.efa-project.org"
 smirror="https://dl.efa-project.org"
 mirrorpath="/build/$version"
 yumexclude="kernel* MariaDB* postfix* mailscanner* MailScanner* clamav* clamd* open-vm-tools*"
-MAILWATCHVERSION="b5ac806"
-MAILWATCHRELEASE="1.2.5"
-MAILWATCHBRANCH="master"
+MAILWATCHVERSION="c08ef03"
+MAILWATCHRELEASE="1.2.7-dev"
+MAILWATCHBRANCH="develop"
 IMAGECEBERUSVERSION="1.1"
 SPAMASSASSINVERSION="3.4.1"
 WEBMINVERSION="1.850-1"
@@ -155,11 +155,17 @@ func_mariadb () {
     cd /usr/src/EFA
     /usr/bin/wget --no-check-certificate $gitdlurl/MYSQL/awl_mysql.sql
     /usr/bin/mysql -u root -p"$password" sa_bayes < /usr/src/EFA/awl_mysql.sql
-    
+
     # Issue #357 Fonts not rendering in MailWatch
     sed -i "/^\[mysqld\]/ a\character-set-server = utf8mb4" /etc/my.cnf.d/server.cnf
     sed -i "/^\[mysqld\]/ a\init-connect = 'SET NAMES utf8mb4'" /etc/my.cnf.d/server.cnf
     sed -i "/^\[mysqld\]/ a\collation-server = utf8mb4_unicode_ci" /etc/my.cnf.d/server.cnf
+
+    # Issue #388 MailWatch database schema upgrade causing /tmp to fill up
+    mkdir /var/lib/mysql/temp
+    chown mysql:mysql /var/lib/mysql/temp
+    sed -i "/^\[mysqld\]/ a\tmpdir = /var/lib/mysql/temp" /etc/my.cnf.d/server.cnf
+
 }
 # +---------------------------------------------------+
 
@@ -256,7 +262,7 @@ func_postfix () {
 # +---------------------------------------------------+
 func_mailscanner () {
 
-    chown postfix:postfix /var/spool/MailScanner/quarantine
+    chown postfix:mtagroup /var/spool/MailScanner/quarantine
     mkdir /var/spool/MailScanner/spamassassin
     chown postfix:postfix /var/spool/MailScanner/spamassassin
     mkdir /var/spool/mqueue
@@ -659,7 +665,7 @@ EOF
 func_sqlgrey () {
     cd /usr/src/EFA
     useradd sqlgrey -m -d /home/sqlgrey -s /sbin/nologin
-    wget $mirror/$mirrorpath/sqlgrey-1.8.0.tar.gz
+    wget $smirror/$mirrorpath/sqlgrey-1.8.0.tar.gz
     tar -xvzf sqlgrey-1.8.0.tar.gz
     cd sqlgrey-1.8.0
     make rh-install
@@ -711,7 +717,7 @@ func_mailwatch () {
 
     # Fetch MailWatch
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/MailWatch-$MAILWATCHBRANCH-GIT-$MAILWATCHVERSION.zip
+    wget $smirror/$mirrorpath/MailWatch-$MAILWATCHBRANCH-GIT-$MAILWATCHVERSION.zip
     unzip -d . MailWatch-$MAILWATCHBRANCH-GIT-$MAILWATCHVERSION.zip
     cd MailWatch-$MAILWATCHBRANCH
 
@@ -757,8 +763,8 @@ EOF
     cd /var/www/html/mailscanner
     chown root:apache images
     chmod ug+rwx images
-    chown root:apache images/cache
-    chmod ug+rwx images/cache
+    #chown root:apache images/cache
+    #chmod ug+rwx images/cache
     chown root:apache temp
     chmod ug+rwx temp
 
@@ -802,7 +808,7 @@ EOF
 
     # Grabbing an favicon to complete the look
     cd /var/www/html/
-    wget $mirror/static/favicon.ico
+    wget $smirror/static/favicon.ico
     # override cp -i alias
     /bin/cp -f favicon.ico /var/www/html/mailscanner/
     /bin/cp -f favicon.ico /var/www/html/mailscanner/images
@@ -820,10 +826,8 @@ EOF
     # Issue #107 MailWatch login page shows Mailwatch logo and theme after update testing
     # mv mailwatch-logo-trans-307x84.png mailwatch-logo-trans-307x84.png.orig > /dev/null 2>&1
     # ln -s EFAlogo-79px.png mailwatch-logo-trans-307x84.png
-    sed -i 's/#f7ce4a/#719b94/g' /var/www/html/mailscanner/style.css
-
-    # Change the yellow to match website colors..
-    sed -i 's/#F7CE4A/#719b94/g' /var/www/html/mailscanner/style.css
+    sed -i 's/#f7ce4a/#719b94/ig' /var/www/html/mailscanner/style.css
+    sed -i 's/#deb531/#518c82/ig' /var/www/html/mailscanner/style.css
 
     # Add Mailgraph link and remove dnsreport link
     # Issue #39 Add link for Webmin in MailWatch
@@ -890,7 +894,7 @@ EOF
 
     # Install Encoding:FixLatin perl module for mailwatch UTF8 support
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/Encoding-FixLatin-1.04.tar.gz
+    wget $smirror/$mirrorpath/Encoding-FixLatin-1.04.tar.gz
     tar xzvf /usr/src/EFA/Encoding-FixLatin-1.04.tar.gz
     cd /usr/src/EFA/Encoding*
     perl Makefile.PL
@@ -917,7 +921,7 @@ EOF
 # +---------------------------------------------------+
 func_sgwi () {
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/sqlgreywebinterface-1.1.9-2.tgz
+    wget $smirror/$mirrorpath/sqlgreywebinterface-1.1.9-2.tgz
     tar -xzvf sqlgreywebinterface-1.1.9-2.tgz
     cd sqlgreywebinterface-1.1.9-2
     # Place next to mailwatch
@@ -978,7 +982,7 @@ func_sgwi () {
 # +---------------------------------------------------+
 func_mailgraph () {
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/mailgraph-1.14.tar.gz
+    wget $smirror/$mirrorpath/mailgraph-1.14.tar.gz
     tar xvzf mailgraph-1.14.tar.gz
     cd mailgraph-1.14
 
@@ -998,9 +1002,9 @@ func_mailgraph () {
 
     # Mailgraph security modifications
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/PHP-Session-0.27.tar.gz
-    wget $mirror/$mirrorpath/UNIVERSAL-require-0.15.tar.gz
-    wget $mirror/$mirrorpath/CGI-Lite-2.02.tar.gz
+    wget $smirror/$mirrorpath/PHP-Session-0.27.tar.gz
+    wget $smirror/$mirrorpath/UNIVERSAL-require-0.15.tar.gz
+    wget $smirror/$mirrorpath/CGI-Lite-2.02.tar.gz
     tar -xzvf UNIVERSAL-require-0.15.tar.gz
     cd UNIVERSAL-require-0.15
     perl Makefile.PL
@@ -1049,7 +1053,7 @@ func_mailgraph () {
 func_pyzor () {
 
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/pyzor-$PYZORVERSION.tar.gz
+    wget $smirror/$mirrorpath/pyzor-$PYZORVERSION.tar.gz
     tar xvzf pyzor-$PYZORVERSION.tar.gz
     cd pyzor-$PYZORVERSION
     python setup.py build
@@ -1064,7 +1068,8 @@ func_pyzor () {
     chmod -R ug+rwx /var/spool/postfix/.pyzor
 
     # and finally initialize the servers file with an discover.
-    su postfix -s /bin/bash -c 'pyzor discover'
+    # Discovery no longer exists in 1.0.0
+    # su postfix -s /bin/bash -c 'pyzor discover'
 
     # Add version to EFA-Config
     echo "PYZORVERSION:$PYZORVERSION" >> /etc/EFA-Config
@@ -1076,7 +1081,7 @@ func_pyzor () {
 # +---------------------------------------------------+
 func_razor () {
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/razor-agents-2.84.tar.bz2
+    wget $smirror/$mirrorpath/razor-agents-2.84.tar.bz2
     tar xvjf razor-agents-2.84.tar.bz2
     cd razor-agents-2.84
 
@@ -1103,7 +1108,7 @@ func_razor () {
 func_dcc () {
     cd /usr/src/EFA
 
-    wget $mirror/$mirrorpath/dcc-1.3.159.tar.Z
+    wget $smirror/$mirrorpath/dcc-1.3.159.tar.Z
     tar xvzf dcc-1.3.159.tar.Z
     cd dcc-*
 
@@ -1130,7 +1135,7 @@ func_dcc () {
 # +---------------------------------------------------+
 func_imagecerberus () {
     cd /usr/src/EFA
-    wget $mirror/$mirrorpath/imageCerberus-v$IMAGECEBERUSVERSION.zip
+    wget $smirror/$mirrorpath/imageCerberus-v$IMAGECEBERUSVERSION.zip
     unzip imageCerberus-v$IMAGECEBERUSVERSION.zip
     cd imageCerberus-v$IMAGECEBERUSVERSION
     mkdir /etc/spamassassin
